@@ -38,7 +38,7 @@ app.use(express.json()) //Использовать json
 
 //app.use(express.static('public'));
 
-const whitelist = ['http://localhost:3000', 'http://rustamproject.ru' ]
+const whitelist = ['http://localhost:3000', 'http://rustamproject.ru', 'http://api.rustamproject.ru' ]
 const corsOptions = {
     credentials: true,
 
@@ -92,7 +92,8 @@ app.use(cookieSession({
     maxAge: 24 * 60 * 60 * 1000 // 24 hours
 }))
 
-
+// Set up Global configuration access
+dotenv.config();
 
 
 //INSERT INTO `users`(`login`, `password`, `data`, `test`) VALUES ('admin','admin','{}','1');
@@ -348,8 +349,6 @@ app.get('/api/user/:login', (req, res) => {
 
 
  
-// Set up Global configuration access
-dotenv.config();
  
 // Main Code Here  //
 // Generating JWT
