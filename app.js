@@ -6,16 +6,19 @@ import express from 'express';
 import 'dotenv/config'
 import dotenv from 'dotenv'
 
+import http from 'http'
+import https from 'https'
+
 import { fileURLToPath } from 'url';
 import { pathToFileURL } from 'url';
 import { dirname } from 'path';
 import stream from 'stream';
-import cookieSession from 'cookie-session';
+//import cookieSession from 'cookie-session';
 import cookieParser from 'cookie-parser';
 //import rethinkdb from 'rethinkdb' // need install first // npm install rethinkdb 
 
 
-//import 'http'
+
 import validateForm from './utility/validateForm.js'
 import uniqueLogin from './utility/uniqueLogin.js'
 import registerUser from './utility/registerUser.js'
@@ -38,117 +41,47 @@ app.use(express.json()) //Использовать json
 
 //app.use(express.static('public'));
 
-const whitelist = ['http://localhost:3000', 'http://rustamproject.ru', 'http://api.rustamproject.ru' ]
+const whitelist = ['http://localhost:3000', 'http://rustamproject.ru' ]
 const corsOptions = {
     credentials: true,
 
     origin: function(origin, callback) {
-        if (whitelist.indexOf(origin) !== -1) {
+        if (whitelist.indexOf(origin) !== -1 || !origin) { // !origin если запрос с того же источника, на котором находится скрипт
             callback(null, true)
         } else {
-            callback(new Error('Not allowed by CORS'))
+            callback(new Error(`Not allowed by CORS`))
         }
     }
 }
-
-app.use(cors(corsOptions));
-
 /*
 app.use(cors({
     credentials: true, 
     origin: 'http://localhost:3000'
 }))
 */
-
-/*
-// Add headers before the routes are defined
-app.use(function (req, res, next) {
-
-    // Website you wish to allow to connect
-    res.setHeader('Access-Control-Allow-Origin', 'http://localhost:3000');
-
-    // Request methods you wish to allow
-    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, PUT, PATCH, DELETE');
-
-    // Request headers you wish to allow
-    res.setHeader('Access-Control-Allow-Headers', 'X-Requested-With,content-type');
-
-    // Set to true if you need the website to include cookies in the requests sent
-    // to the API (e.g. in case you use sessions)
-    res.setHeader('Access-Control-Allow-Credentials', true);
-
-    // Pass to next layer of middleware
-    next();
-});
-*/
+app.use(cors(corsOptions));
 
 app.use(cookieParser())
 
-app.use(cookieSession({
+dotenv.config();
+
+/*app.use(cookieSession({
     name: 'session',
-    keys: ['secret123123'/* secret keys */],
+    keys: ['secret123123'],
   
     // Cookie Options
     maxAge: 24 * 60 * 60 * 1000 // 24 hours
-}))
-
-// Set up Global configuration access
-dotenv.config();
-
-
-//INSERT INTO `users`(`login`, `password`, `data`, `test`) VALUES ('admin','admin','{}','1');
-
-
-/*
-rethinkdb.connect({ host: 'localhost', port: 28015 }, (err, connection) => {
-    if(err) throw err;
-
-    rethinkdb.db('test').tableCreate('tv_shows').run(connection, (err, res) => {
-        if(err) throw err;
-        console.log(res);
-
-        rethinkdb.table('tv_shows').insert({ name: 'Star Trek TNG' }).run(connection, (err, res) => {
-            if(err) throw err;
-            console.log(res);
-        });
-
-        /*
-        rethinkdb.table('authors').insert([
-            { name: "William Adama", tv_show: "Battlestar Galactica",
-              posts: [
-                {title: "Decommissioning speech", content: "The Cylon War is long over..."},
-                {title: "We are at war", content: "Moments ago, this ship received word..."},
-                {title: "The new Earth", content: "The discoveries of the past few days..."}
-              ]
-            },
-            { name: "Laura Roslin", tv_show: "Battlestar Galactica",
-              posts: [
-                {title: "The oath of office", content: "I, Laura Roslin, ..."},
-                {title: "They look like us", content: "The Cylons have the ability..."}
-              ]
-            },
-            { name: "Jean-Luc Picard", tv_show: "Star Trek TNG",
-              posts: [
-                {title: "Civil rights", content: "There are some words I've known since..."}
-              ]
-            }
-        ]).run(connection, function(err, result) {
-            if (err) throw err;
-            console.log(JSON.stringify(result, null, 2));
-        })
-        *//*
-    });
-});
-*/
+}))*/
 
 
 
 
-
-
-
-
-
+// Create HTTPs server.
+/*const options = {
+    key: fs.readFileSync(__dirname + '/private.key', 'utf8'),
+    cert: fs.readFileSync(__dirname + '/public.cert', 'utf8')
+};
+var server = https.createServer(options, app);*/
 
 
 
@@ -173,10 +106,12 @@ async function generateImage(prompt = 'Sun in sky', style = 0, width = 1024, hei
     })*/
 
     return base64Data
-
-    
 }
 
+app.get('/', async (req, res) => {
+    res.status(200)
+    res.end('Welcome to API server')
+})
 
 app.post('/api/generator', async (req, res) => {
     if (!req.cookies.username || !req.body.prompt) {
@@ -225,11 +160,14 @@ app.post('/api/register', (req, res) => {
 
             res.cookie('username', user.username, {
                 maxAge: 1000 * 60 * 60 * 24, // 24 часа
-                //secure: true,
+                secure: true,
+                sameSite: 'none'
             })
             res.cookie('access_token', token, {
                 maxAge: 1000 * 60 * 60 * 24, // 24 часа
-                //secure: true,
+                //httpOnly: true,
+                secure: true,
+                sameSite: 'none'
             })
             
             res.json({
@@ -245,11 +183,12 @@ app.post('/api/register', (req, res) => {
 
     } 
 });
+
 app.post('/api/login', (req, res) => {
     const dataPath = path.join(__dirname, './data/users.json')
     const validate = validateForm(req.body)
     
-    if (validate.vaild === true ) {
+    if (validate.vaild === true) {
         const user = loginUser(req.body, dataPath)
 
         if (user) {
@@ -259,11 +198,15 @@ app.post('/api/login', (req, res) => {
 
             res.cookie('username', user.username, {
                 maxAge: 1000 * 60 * 60 * 24, // 24 часа
-                //secure: true,
+                secure: true,
+                //httpOnly: true,
+                sameSite: 'none'
             })
             res.cookie('access_token', token, {
                 maxAge: 1000 * 60 * 60 * 24, // 24 часа
-                //secure: true,
+                secure: true,
+                //httpOnly: true,
+                sameSite: 'none'
             })
             
             res.json({
@@ -344,13 +287,9 @@ app.get('/api/user/:login', (req, res) => {
         });
     } 
 });*/
-
-
-
-
  
- 
-// Main Code Here  //
+
+/*
 // Generating JWT
 app.post("/user/generateToken", (req, res) => {
     // Validate User Here
@@ -390,16 +329,6 @@ app.get("/user/validateToken", (req, res) => {
         return res.status(401).send(error);
     }
 });
-
-
-
-
-
-
-
-
-
-
-
+*/
 
 app.listen(port);
