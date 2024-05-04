@@ -2,6 +2,7 @@
     {
         "id": 1,
         "username": "admin",
+        "email": "1rustamnew1@gmail.com",
         "password": "admin"
     }
 ]

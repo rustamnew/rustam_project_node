@@ -129,7 +129,11 @@ app.post('/api/generator', async (req, res) => {
     
     //Запись буфера в файл
     fs.writeFile(`./data/generations/${fileName}`, buffer, 'base64', (err) => {
-        if (err) throw err;
+        if (err) {
+            res.json({
+                error: `Ошибка создания файла ${err}`
+            })
+        }
         console.log(`Файл ${fileName} сохранен`)
 
         res.json({ //отправить ссылку на файл в запросе
@@ -195,13 +199,15 @@ app.post('/api/login', (req, res) => {
             res.status(200)
 
             const token = JWTcreate(user)
+            user.access_token = token
 
-            res.cookie('username', user.username, {
+            res.cookie('username', user.username, { //Избавиться ?
                 maxAge: 1000 * 60 * 60 * 24, // 24 часа
                 secure: true,
                 //httpOnly: true,
                 sameSite: 'none'
             })
+            
             res.cookie('access_token', token, {
                 maxAge: 1000 * 60 * 60 * 24, // 24 часа
                 secure: true,
@@ -254,7 +260,7 @@ app.get('/api/get/user/', (req, res) => {
     
 })
 
-app.get('/api/get/user/:data', (req, res) => {
+app.get('/api/get/:data', (req, res) => {
     if (!req.cookies.access_token) {
         res.status(500)
         res.end('no access token')
