@@ -12,7 +12,7 @@ JWT_SECRET_KEY=gfg_jwt_secret_key (для JWT)
 TOKEN_HEADER_KEY=gfg_token_header_key (для JWT)
 
 ## Запуск
-npm install
+npm install  
 node --env-file=.env app.js
 
 Через несколько секунд в корне появится файл с изображением
