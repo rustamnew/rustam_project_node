@@ -2,12 +2,13 @@ import jwt from 'jsonwebtoken';
 export default (user) => {
 
     let jwtSecretKey = process.env.JWT_SECRET_KEY;
-    let data = {
+
+    let user_JWT_data = {
         time: Date(),
-        userId: user.id,
+        user,
     }
  
-    const token = jwt.sign(data, jwtSecretKey);
+    const token = jwt.sign(user_JWT_data, jwtSecretKey);
 
     return token
 }

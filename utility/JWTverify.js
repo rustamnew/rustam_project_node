@@ -11,8 +11,7 @@ export default (req/*, res*/) => {
         const verified = jwt.verify(token, jwtSecretKey);
 
         if (verified) {
-            return verified.userId
-            //return res.send("Successfully Verified");
+            return verified.user.id
         } else {
             // Access Denied
             return false

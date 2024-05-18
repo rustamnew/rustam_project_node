@@ -1,12 +1,14 @@
-export default (formData) => {
+export default (reqBody) => {
+    // Дефолтные значения
     const validate = {
         vaild: true,
         errorMessages: [],
         errorFields: []
     }
 
-    if (formData.password && formData.password_again) {
-        if (formData.password !== formData.password_again ) {
+    // Подтверждение пароля (при наличии)
+    if (reqBody.password && reqBody.password_again) {
+        if (reqBody.password !== reqBody.password_again ) {
             validate.vaild = false
             validate.errorMessages.push('Пароли не совпадают')
             validate.errorFields.push('password')
@@ -14,10 +16,10 @@ export default (formData) => {
         }
     }
 
-    const fields = Object.keys(formData)
-
+    // Минимальная длина поля
+    const fields = Object.keys(reqBody)
     fields.forEach( (field) => {
-        if (formData[field].length < 4) {
+        if (reqBody[field].length < 4) {
             validate.vaild = false
             validate.errorMessages.push('Слишком короткое значение')
             validate.errorFields.push(field)
@@ -25,9 +27,10 @@ export default (formData) => {
         
     })
 
-
-    validate.errorFields = Array.from(new Set(validate.errorFields)); //Убрать повторы в массиве, новая структура "Set"
+    // Убрать повторы в массиве, новая структура "Set"
+    validate.errorFields = Array.from(new Set(validate.errorFields)); 
     validate.errorMessages = Array.from(new Set(validate.errorMessages));
 
+    // Возвращается объект validate
     return validate
 }

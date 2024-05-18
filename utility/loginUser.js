@@ -1,19 +1,39 @@
 import fs from 'fs'
+import validateForm from './validateForm.js'
 
-export default (reqBody, pathReadFile) => {
-    let success = false
+export default (req, res, pathReadFile) => {
+    // Проверка формы на валидность
+    const validate = validateForm(req.body)
 
+
+    // Прервать если не валидная форма
+    if (validate.vaild === false) {
+        res.status(400)
+        res.json(validate);
+        return
+    }
+
+
+    // Чтение "базы" с пользователями
     const data = fs.readFileSync(pathReadFile, {
         encoding: 'utf8'
     })
-    let users = JSON.parse(data)
-
-    const found_user = users.find((user_found) => user_found.username === reqBody.username)
+    const users = JSON.parse(data)
 
 
-    if (found_user && reqBody.password === found_user.password) {
-        return found_user
-    } else {
-        return success
+    // Поиск пользователя 
+    let user = users.find((user_found) => (user_found.username === req.body.username && user_found.password === req.body.password))
+
+
+    // Прервать если не найден пользователь
+    if (!user) {
+        validate.errorMessages.push('Пользователь не найден')
+        res.status(404)
+        res.json(validate);
+        return
     }
+
+
+    // Возврат объекта с пользователем
+    return user
 }

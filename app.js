@@ -20,7 +20,6 @@ import cookieParser from 'cookie-parser';
 
 
 import validateForm from './utility/validateForm.js'
-import uniqueLogin from './utility/uniqueLogin.js'
 import registerUser from './utility/registerUser.js'
 import loginUser from './utility/loginUser.js'
 import saveUserData from './utility/saveUserData.js'
@@ -39,9 +38,9 @@ const app = express();
 
 app.use(express.json()) //Использовать json
 
-//app.use(express.static('public'));
 
-const whitelist = ['http://localhost:3000', 'http://rustamproject.ru' ]
+// CORS WhiteList
+const whitelist = ['http://localhost:3000', 'https://rustamproject.ru' ]
 const corsOptions = {
     credentials: true,
 
@@ -53,36 +52,11 @@ const corsOptions = {
         }
     }
 }
-/*
-app.use(cors({
-    credentials: true, 
-    origin: 'http://localhost:3000'
-}))
-*/
 app.use(cors(corsOptions));
 
 app.use(cookieParser())
 
 dotenv.config();
-
-/*app.use(cookieSession({
-    name: 'session',
-    keys: ['secret123123'],
-  
-    // Cookie Options
-    maxAge: 24 * 60 * 60 * 1000 // 24 hours
-}))*/
-
-
-
-
-// Create HTTPs server.
-/*const options = {
-    key: fs.readFileSync(__dirname + '/private.key', 'utf8'),
-    cert: fs.readFileSync(__dirname + '/public.cert', 'utf8')
-};
-var server = https.createServer(options, app);*/
-
 
 
 
@@ -92,6 +66,9 @@ async function generateImage(prompt = 'Sun in sky', style = 0, width = 1024, hei
     const uuid = await api.generate(prompt, modelId, images, width, height, style); //prompt, model, images = 1, width = 1024, height = 1024, style = 3
     const generatedImages = await api.checkGeneration(uuid)
 
+    if (!generatedImages) {
+        return false
+    }
     // Начало создания файла
     const base64String = generatedImages[0]
     // Преобразование строки base64 в бинарные данные
@@ -121,6 +98,12 @@ app.post('/api/generator', async (req, res) => {
     }
 
     const imageBase64 = await generateImage(req.body.prompt, req.body.style, req.body.width, req.body.height)
+
+    if (!imageBase64) {
+        res.status(500)
+        res.end('fusion ai error')
+        return
+    }
     const buffer = Buffer.from(imageBase64, 'base64')
     //res.end(buffer);
    
@@ -130,15 +113,17 @@ app.post('/api/generator', async (req, res) => {
     //Запись буфера в файл
     fs.writeFile(`./data/generations/${fileName}`, buffer, 'base64', (err) => {
         if (err) {
+            res.status(500)
             res.json({
                 error: `Ошибка создания файла ${err}`
             })
+        } else {
+            console.log(`Файл ${fileName} сохранен`)
+            res.status(200)
+            res.json({ //отправить ссылку на файл в запросе
+                image_link: `data/generations/${fileName}` //пихнуть в пользовательские данные в галерею ЕСЛИ ЗАЛОГИНЕН (НЕ GUEST)
+            })
         }
-        console.log(`Файл ${fileName} сохранен`)
-
-        res.json({ //отправить ссылку на файл в запросе
-            image_link: `data/generations/${fileName}` //пихнуть в пользовательские данные в галерею ЕСЛИ ЗАЛОГИНЕН (НЕ GUEST)
-        })
     })
 });
 
@@ -150,92 +135,72 @@ app.get('/data/generations/:file', (req, res) => {
 
 app.post('/api/register', (req, res) => {
     const dataPath = path.join(__dirname, './data/users.json')
-    const validate = validateForm(req.body)
-    const uniqueUser = uniqueLogin(req.body.username, dataPath)
+    const user = registerUser(req, res, dataPath)
+    
+    //Ответ на запрос
+    if (user) {
+        const token = JWTcreate(user)
 
-    if (validate.vaild === true && uniqueUser) {
-        const user = registerUser(req.body, dataPath)
-
-
-        if (user) {
-            res.status(200)
-
-            const token = JWTcreate(user)
-
-            res.cookie('username', user.username, {
-                maxAge: 1000 * 60 * 60 * 24, // 24 часа
-                secure: true,
-                sameSite: 'none'
-            })
-            res.cookie('access_token', token, {
-                maxAge: 1000 * 60 * 60 * 24, // 24 часа
-                //httpOnly: true,
-                secure: true,
-                sameSite: 'none'
-            })
-            
-            res.json({
-                data: {
-                    user: user
-                },
-            });
-        } else {
-            validate.errorMessages.push('Ошибка создания пользователя')
-            res.status(500)
-            res.json(validate);
-        }
-
-    } 
+        res.status(200)
+    
+        res.cookie('username', user.username, {
+            maxAge: 1000 * 60 * 60 * 24, // 24 часа
+            secure: true,
+            sameSite: 'none'
+        })
+        res.cookie('access_token', token, {
+            maxAge: 1000 * 60 * 60 * 24, // 24 часа
+            //httpOnly: true,
+            secure: true,
+            sameSite: 'none'
+        })
+        
+        res.json({
+            data: {
+                user: user
+            },
+        });
+    }
 });
 
 app.post('/api/login', (req, res) => {
     const dataPath = path.join(__dirname, './data/users.json')
-    const validate = validateForm(req.body)
-    
-    if (validate.vaild === true) {
-        const user = loginUser(req.body, dataPath)
+    const user = loginUser(req, res, dataPath)
 
-        if (user) {
-            res.status(200)
+    //Ответ на запрос
+    if (user) {
+        res.status(200)
 
-            const token = JWTcreate(user)
-            user.access_token = token
+        const token = JWTcreate(user)
+        user.access_token = token
 
-            res.cookie('username', user.username, { //Избавиться ?
-                maxAge: 1000 * 60 * 60 * 24, // 24 часа
-                secure: true,
-                //httpOnly: true,
-                sameSite: 'none'
-            })
-            
-            res.cookie('access_token', token, {
-                maxAge: 1000 * 60 * 60 * 24, // 24 часа
-                secure: true,
-                //httpOnly: true,
-                sameSite: 'none'
-            })
-            
-            res.json({
-                data: {
-                    user: user
-                },
-            });
-        } else {
-            validate.errorMessages.push('Такой пользователь не существует')
-            res.status(404)
-            res.json(validate);
-        }
-    } else {
-        res.json(validate);
-    } 
+        res.cookie('username', user.username, {
+            maxAge: 1000 * 60 * 60 * 24, // 24 часа
+            secure: true,
+            //httpOnly: true,
+            sameSite: 'none'
+        })
+        
+        res.cookie('access_token', token, {
+            maxAge: 1000 * 60 * 60 * 24, // 24 часа
+            secure: true,
+            //httpOnly: true,
+            sameSite: 'none'
+        })
+        
+        res.json({
+            data: {
+                user: user
+            },
+        });
+    }
 });
 
-app.post('/api/save/user/:data', (req, res) => {
+app.post('/api/save/:data', (req, res) => {
     const dataPath = path.join(__dirname, './data/users_data.json')
     const username = req.cookies.username
 
     const user_data_saved = saveUserData(username, req.params.data, req.body, dataPath)
-
 
     
     if ( JWTverify(req) ) {
@@ -247,17 +212,19 @@ app.post('/api/save/user/:data', (req, res) => {
 });
 
 app.get('/api/get/user/', (req, res) => {
-    const dataPath = path.join(__dirname, './data/users.json')
-    console.log(req.cookies)
     if ( JWTverify(req) ) {
-        res.status(200)
+        const dataPath = path.join(__dirname, './data/users.json')
         const user = getUser(req.cookies.username, dataPath)
-        res.json(user)
-    } else {
+
+        if (user) {
+            res.status(200)
+            res.json(user)
+        } 
+
+    }  else {
         res.status(400)
         res.end()
     }
-    
 })
 
 app.get('/api/get/:data', (req, res) => {
@@ -271,70 +238,9 @@ app.get('/api/get/:data', (req, res) => {
     }
 
     const dataPath = path.join(__dirname, './data/users_data.json')
-
     const user_data = getUserData(req.cookies.username, dataPath)
+
     res.json(user_data)
 })
-/*
-app.get('/api/user/:login', (req, res) => {
-    const dataPath = path.join(__dirname, './data/users.json')
-
-    const user_data = getUserData(req.params.login, dataPath)
-
-    if ( user_data ) {
-        res.json({
-            status: 'ok',
-            body: user_data
-        });
-    } else {
-        res.json({
-            status: 'error',
-            body: req.body
-        });
-    } 
-});*/
- 
-
-/*
-// Generating JWT
-app.post("/user/generateToken", (req, res) => {
-    // Validate User Here
-    // Then generate JWT Token
- 
-    let jwtSecretKey = process.env.JWT_SECRET_KEY;
-    let data = {
-        time: Date(),
-        userId: 12,
-    }
- 
-    const token = jwt.sign(data, jwtSecretKey);
- 
-    res.send(token);
-});
- 
-// Verification of JWT
-app.get("/user/validateToken", (req, res) => {
-    // Tokens are generally passed in header of request
-    // Due to security reasons.
- 
-    let tokenHeaderKey = process.env.TOKEN_HEADER_KEY;
-    let jwtSecretKey = process.env.JWT_SECRET_KEY;
- 
-    try {
-        const token = req.header(tokenHeaderKey);
- 
-        const verified = jwt.verify(token, jwtSecretKey);
-        if (verified) {
-            return res.send("Successfully Verified");
-        } else {
-            // Access Denied
-            return res.status(401).send(error);
-        }
-    } catch (error) {
-        // Access Denied
-        return res.status(401).send(error);
-    }
-});
-*/
 
 app.listen(port);

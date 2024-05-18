@@ -1,6 +1,5 @@
 import fs from 'fs'
 
-//module.exports = 
 export default (username, pathReadFile) => {
 
     const data = fs.readFileSync(pathReadFile, {
@@ -12,8 +11,7 @@ export default (username, pathReadFile) => {
 
     if (!found_user) {
         return false
-    } else {
-        return found_user
     }
-
+        
+    return found_user
 }
