@@ -212,15 +212,12 @@ app.post('/api/save/:data', (req, res) => {
 });
 
 app.get('/api/get/user/', (req, res) => {
-    if ( JWTverify(req) ) {
-        const dataPath = path.join(__dirname, './data/users.json')
-        const user = getUser(req.cookies.username, dataPath)
+    // Получение объекта пользователя, закрепленного с JWT
+    const user = JWTverify(req)
 
-        if (user) {
-            res.status(200)
-            res.json(user)
-        } 
-
+    if ( user ) {
+        res.status(200)
+        res.json(user)
     }  else {
         res.status(400)
         res.end()
