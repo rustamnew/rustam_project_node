@@ -24,6 +24,7 @@ import registerUser from './utility/registerUser.js'
 import loginUser from './utility/loginUser.js'
 import saveUserData from './utility/saveUserData.js'
 import getUser from './utility/getUser.js'
+import addUserData from './utility/addUserData.js'
 import getUserData from './utility/getUserData.js'
 import JWTcreate from './utility/JWTcreate.js'
 import JWTverify from './utility/JWTverify.js'
@@ -125,6 +126,9 @@ app.post('/api/generator', async (req, res) => {
             })
         }
     })
+
+    // Добавление файла в галерею пользователя
+    addUserData(req.cookies.username, 'generations', fileName, dataPath) 
 });
 
 app.get('/data/generations/:file', (req, res) => {
@@ -220,7 +224,7 @@ app.get('/api/get/user/', (req, res) => {
         res.json(user)
     }  else {
         res.status(400)
-        res.end()
+        res.end('bad jwt')
     }
 })
 
@@ -228,14 +232,17 @@ app.get('/api/get/:data', (req, res) => {
     if (!req.cookies.access_token) {
         res.status(500)
         res.end('no access token')
+        return
     }
     if (!req.params.data) {
         res.status(500)
         res.end('no datatype param')
+        return
     }
 
     const dataPath = path.join(__dirname, './data/users_data.json')
-    const user_data = getUserData(req.cookies.username, dataPath)
+    const user_data = getUserData(req.cookies.username, req.params.data, dataPath)
+
 
     res.json(user_data)
 })
